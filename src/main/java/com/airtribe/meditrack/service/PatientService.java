@@ -5,6 +5,7 @@ import com.airtribe.meditrack.entity.Patient;
 import com.airtribe.meditrack.exception.InvalidDataException;
 import com.airtribe.meditrack.util.DataStore;
 import com.airtribe.meditrack.util.IdGenerator;
+import com.airtribe.meditrack.util.RecordHelper;
 import com.airtribe.meditrack.util.Validator;
 
 import java.util.Comparator;
@@ -20,6 +21,16 @@ public class PatientService {
     }
 
     public Patient createPatient(String name, String phone, String email, int age, String address, Doctor primaryDoctor) {
+        String normalizedPhone = RecordHelper.normalize(phone);
+        String normalizedEmail = RecordHelper.normalize(email);
+
+        boolean duplicateFound = RecordHelper.containsDuplicate(patientStore.findAll(), existing ->
+                RecordHelper.normalize(existing.getPhoneNumber()).equals(normalizedPhone)
+                        || RecordHelper.normalize(existing.getEmail()).equals(normalizedEmail));
+        if (duplicateFound) {
+            throw new InvalidDataException("Duplicate patient record: email or phone already exists");
+        }
+
         Patient patient = new Patient(
                 IdGenerator.getInstance().nextId("P-"),
                 Validator.requireText(name, "Patient name"),

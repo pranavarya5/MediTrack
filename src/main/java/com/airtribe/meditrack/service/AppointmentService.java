@@ -1,5 +1,6 @@
 package com.airtribe.meditrack.service;
 
+import com.airtribe.meditrack.billing.BillFactory;
 import com.airtribe.meditrack.entity.Appointment;
 import com.airtribe.meditrack.entity.AppointmentStatus;
 import com.airtribe.meditrack.entity.Bill;
@@ -10,6 +11,7 @@ import com.airtribe.meditrack.exception.InvalidDataException;
 import com.airtribe.meditrack.util.DataStore;
 import com.airtribe.meditrack.util.DateUtil;
 import com.airtribe.meditrack.util.IdGenerator;
+import com.airtribe.meditrack.util.RecordHelper;
 
 import java.time.LocalDateTime;
 import java.util.Comparator;
@@ -33,6 +35,15 @@ public class AppointmentService {
                 .orElseThrow(() -> new InvalidDataException("Patient not found: " + patientId));
         Doctor doctor = doctorStore.findById(doctorId)
                 .orElseThrow(() -> new InvalidDataException("Doctor not found: " + doctorId));
+
+        boolean duplicateFound = RecordHelper.containsDuplicate(appointmentStore.findAll(), existing ->
+                existing.getPatient().getId().equals(patientId)
+                        && existing.getDoctor().getId().equals(doctorId)
+                        && existing.getAppointmentTime().equals(appointmentTime));
+        if (duplicateFound) {
+            throw new InvalidDataException("Duplicate appointment: same patient, doctor and time already exists");
+        }
+
         Appointment appointment = new Appointment(
                 IdGenerator.getInstance().nextId("A-"),
                 patient.clone(),
@@ -71,7 +82,7 @@ public class AppointmentService {
         if (appointment.getStatus() == AppointmentStatus.CANCELLED) {
             throw new InvalidDataException("Cancelled appointment cannot be billed");
         }
-        return new Bill(IdGenerator.getInstance().nextId("B-"), appointment, appointment.getDoctor().getConsultationFee());
+        return BillFactory.createBill(appointment, appointment.getDoctor().getConsultationFee());
     }
 
     public String appointmentTimeText(String appointmentId) {
