@@ -5,6 +5,7 @@ import com.airtribe.meditrack.entity.Specialization;
 import com.airtribe.meditrack.exception.InvalidDataException;
 import com.airtribe.meditrack.util.DataStore;
 import com.airtribe.meditrack.util.IdGenerator;
+import com.airtribe.meditrack.util.RecordHelper;
 import com.airtribe.meditrack.util.Validator;
 
 import java.util.Comparator;
@@ -20,6 +21,16 @@ public class DoctorService {
     }
 
     public Doctor createDoctor(String name, String phone, String email, Specialization specialization, double fee) {
+        String normalizedPhone = RecordHelper.normalize(phone);
+        String normalizedEmail = RecordHelper.normalize(email);
+
+        boolean duplicateFound = RecordHelper.containsDuplicate(doctorStore.findAll(), existing ->
+                RecordHelper.normalize(existing.getPhoneNumber()).equals(normalizedPhone)
+                        || RecordHelper.normalize(existing.getEmail()).equals(normalizedEmail));
+        if (duplicateFound) {
+            throw new InvalidDataException("Duplicate doctor record: email or phone already exists");
+        }
+
         Doctor doctor = new Doctor(
                 IdGenerator.getInstance().nextId("D-"),
                 Validator.requireText(name, "Doctor name"),
